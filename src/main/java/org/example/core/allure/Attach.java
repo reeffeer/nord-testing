@@ -11,4 +11,8 @@ public class Attach {
     public static void json(String name, String content) {
         Allure.addAttachment(name, "application/json", content);
     }
+    
+    public static void html(String name, String content) {
+        Allure.addAttachment(name, "text/html", content);
+    }
 }

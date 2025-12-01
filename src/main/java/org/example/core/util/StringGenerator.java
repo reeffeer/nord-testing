@@ -1,5 +1,7 @@
 package org.example.core.util;
 
+import org.example.core.config.TestEnv;
+
 import java.security.SecureRandom;
 
 public class StringGenerator {
@@ -7,6 +9,12 @@ public class StringGenerator {
     private static final String ALPHANUM = buildAlphaNum('A', 'Z', '0', '9');
     private static final String INVALID_CHARS = buildUpLowNumString();
     private static final SecureRandom RND = new SecureRandom();
+    
+    private final TestEnv env;
+
+    public StringGenerator(TestEnv env) {
+        this.env = env;
+    }
 
     public static String generateToken(String alphabet, int length) {
         StringBuilder sb = new StringBuilder(length);
@@ -20,19 +28,19 @@ public class StringGenerator {
         return generateToken(INVALID_CHARS, length);
     }
 
-    public static String validToken() {
-        return generateToken(ALPHANUM, 32);
+    public String validToken() {
+        return generateToken(ALPHANUM, env.getTokenValidLength());
     }
 
-    public static String invalidTokenWithSymbols() {
-        return generateToken(INVALID_CHARS, 32);
+    public String invalidTokenWithSymbols() {
+        return generateToken(INVALID_CHARS, env.getTokenValidLength());
     }
 
-    public static String invalidLongToken() {
+    public String invalidLongToken() {
         return generateToken(ALPHANUM, 33);
     }
 
-    public static String invalidShortToken() {
+    public String invalidShortToken() {
         return generateToken(ALPHANUM, 31);
     }
 

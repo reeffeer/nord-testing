@@ -24,7 +24,7 @@ public class EndpointApi {
     private final TestEnv env;
     private final RestAssuredClient client;
 
-    @Step("Вызов эндпоинта с action: {request.action}")
+    @Step("Вызов эндпоинта /endpoint: action = {request.action}, X-Api-Key = {apiKey}")
     public EndpointResponse call(EndpointRequest request, String apiKey) {
         RequestSpecification spec = buildSpec(request, apiKey);
 
@@ -34,20 +34,28 @@ public class EndpointApi {
 
         Response response = spec.post("/endpoint").then().extract().response();
 
-        Attach.text("Отправленный запрос:\n", writer.toString());
-        Attach.text("Статус-код ответа: ", String.valueOf(response.getStatusCode()));
-        Attach.text("Тело ответа:\n", response.asString());
+        Attach.text("Отправленный HTTP запрос", writer.toString());
+        Attach.text("HTTP статус-код ответа", String.valueOf(response.getStatusCode()));
+        Attach.json("Тело ответа (JSON)", response.asString());
+        
         return parseResponse(response);
     }
 
-    @Step("Получение ответа от сервиса")
+    @Step("Парсинг ответа от сервиса")
     private EndpointResponse parseResponse(Response response) {
         String payload = response.asString();
         String result = payload.contains("\"OK\"") ? "OK" : "ERROR";
         String message = payload.contains("message") ? response.jsonPath().getString("message") : null;
-        return new EndpointResponse(result, message, response);
+        
+        EndpointResponse parsedResponse = new EndpointResponse(result, message, response);
+        
+        Attach.text("Распарсенный результат", 
+            String.format("Result: %s\nMessage: %s", result, message != null ? message : "null"));
+        
+        return parsedResponse;
     }
 
+    @Step("Построение спецификации запроса: action = {req.action}, token = {req.token}, apiKey = {apiKey}")
     private RequestSpecification buildSpec(EndpointRequest req, String apiKey) {
         RequestSpecification spec = client.baseSpec(env.getBaseUrl())
                 .contentType(ContentType.URLENC)
@@ -56,7 +64,14 @@ public class EndpointApi {
 
         if (apiKey != null) {
             spec.header("X-Api-Key", apiKey);
+            Attach.text("Заголовок X-Api-Key", apiKey);
+        } else {
+            Attach.text("Заголовок X-Api-Key", "не установлен (null)");
         }
+        
+        Attach.text("Параметры формы", 
+            String.format("token: %s\naction: %s", req.getToken() != null ? req.getToken() : "null", req.getAction()));
+        
         return spec;
     }
 }
