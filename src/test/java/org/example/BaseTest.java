@@ -2,6 +2,7 @@ package org.example;
 
 import org.example.api.EndpointApi;
 import org.example.core.allure.Attach;
+import org.example.core.allure.Steps;
 import org.example.core.config.TestEnv;
 import org.example.core.http.RestAssuredClient;
 import org.example.core.stub.WireMockServerManager;
@@ -16,9 +17,10 @@ import java.nio.file.Paths;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class BaseTest {
-    protected TestEnv env;
-    protected RestAssuredClient restAssuredClient;
-    protected EndpointApi endpoint;
+    protected static TestEnv env;
+    protected static Steps step;
+    protected static RestAssuredClient restAssuredClient;
+    protected static EndpointApi endpoint;
     protected WireMockServerManager wireMockServerManager;
 
     @BeforeAll
@@ -28,6 +30,7 @@ public class BaseTest {
         endpoint = new EndpointApi(env, restAssuredClient);
         wireMockServerManager = new WireMockServerManager();
         wireMockServerManager.start(8888);
+        step = new Steps();
     }
 
     @BeforeEach
@@ -42,7 +45,7 @@ public class BaseTest {
         wireMockServerManager.stop();
     }
 
-    protected String readResourceFile(String path) {
+    protected static String readResourceFile(String path) {
         try {
             return Files.readString(Paths.get(path));
         } catch (Exception e) {

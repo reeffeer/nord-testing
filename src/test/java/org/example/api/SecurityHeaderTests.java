@@ -2,51 +2,66 @@ package org.example.api;
 
 import io.qameta.allure.*;
 import org.example.BaseTest;
-import org.example.api.dto.EndpointRequest;
 import org.example.api.enums.Action;
-import org.example.core.allure.Attach;
-import org.example.core.allure.Steps;
-import org.example.core.util.StepReport;
-import org.example.core.util.TokenGenerator;
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import org.example.core.util.StringGenerator;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import java.util.stream.Stream;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 @Epic("Безопасность API")
-@Feature("Проверка заголовков безопасности")
-@Story("Доступ к эндпоинту")
+@Feature("Проверка доступа к endpoint")
+@Story("Разрешение на доступ")
 @Owner("Oleg")
 public class SecurityHeaderTests extends BaseTest {
-    private String errorExpectedResult = readResourceFile("src/test/resources/error.json");
-    private String successExpectedResult = readResourceFile("src/test/resources/success.json");
+    private static String errorExpectedResult = readResourceFile("src/test/resources/error.json");
+    private static String successExpectedResult = readResourceFile("src/test/resources/success.json");
 
-    @Test
-    @Story("Проверка в доступе")
-    @Description("Проверка отказа в доступе без X-Api-Key")
-    void shouldRejectWithoutApiKey() {
+    @ParameterizedTest(name = "Действие: {0}, X-Api-Key: {1}, Токен: {2}, Ожидаемый результат: {3}")
+    @MethodSource("testData")
+    @Description("Проверка доступа к endpoint")
+    void shouldAcceptWithValidApiKey(Action action, String key, String token, String result) {
+        var req = step.createRequest("Отправить " + action.getValue(), action, token);
+        var resp = endpoint.call(req, key);
+        assertThat(resp.getResult())
+                .as("Проверка поля result")
+                .isNotNull()
+                .isEqualTo(result.contains("OK") ? "OK" : "ERROR");
 
-        var req = EndpointRequest.builder()
-                .token(TokenGenerator.validToken())
-                .action(Action.LOGIN.getValue()).build();
+        assertThat(resp.getMessage())
+                .as("Проверка поля message")
+                .isNotEmpty();
 
-        var resp = endpoint.call(req, null);
-        StepReport.report("Отправить " + Action.LOGIN.getValue() + " без X-Api-Key",
-                req, resp.getRaw(), resp, errorExpectedResult);
-//        Attach.json("Ожидаемый ответ:\n", errorExpectedResult);
-//        Attach.json("Фактический ответ:\n", resp.toString());
-        assertEquals("ERROR", resp.getResult(), "Без ключа доступ запрещен");
+        assertThat(resp.getRaw().getStatusCode())
+                .as("Проверка статус-кода HTTP")
+                .isBetween(200, 401);
     }
 
-    @Test
-    @Story("Разрешение на доступ")
-    @Description("Проверка доступа с валидным X-Api-Key")
-    void shouldAcceptWithValidApiKey() {
-        var req = EndpointRequest.builder()
-                .token(TokenGenerator.validToken())
-                .action("LOGIN").build();
-        var resp = endpoint.call(req, env.getApiKey());
-        Attach.json("Ожидаемый ответ:\n", successExpectedResult);
-        Attach.json("Фактический ответ:\n", resp.toString());
-        assertNotNull(resp.getResult(), "С валидным ключом сервис отвечает предсказуемо");
+    private static Stream<Arguments> testData() {
+        return Stream.of(
+                Arguments.of(Action.LOGIN, env.getApiKey(), StringGenerator.validToken(), successExpectedResult),
+                Arguments.of(Action.ACTION, env.getApiKey(), StringGenerator.validToken(), successExpectedResult),
+                Arguments.of(Action.LOGOUT, env.getApiKey(), StringGenerator.validToken(), successExpectedResult),
+                Arguments.of(Action.LOGIN, StringGenerator.randomString(7), StringGenerator.invalidShortToken(), errorExpectedResult),
+                Arguments.of(Action.LOGIN, null, StringGenerator.invalidLongToken(), errorExpectedResult),
+                Arguments.of(Action.LOGIN, env.getApiKey(), StringGenerator.invalidTokenWithSymbols(), errorExpectedResult),
+                Arguments.of(Action.LOGIN, StringGenerator.randomString(10), null, errorExpectedResult),
+                Arguments.of(Action.ACTION, StringGenerator.randomString(9), StringGenerator.invalidLongToken(), errorExpectedResult),
+                Arguments.of(Action.ACTION, null, StringGenerator.invalidTokenWithSymbols(), errorExpectedResult),
+                Arguments.of(Action.ACTION, env.getApiKey(), null, errorExpectedResult),
+                Arguments.of(Action.ACTION, StringGenerator.randomString(1), StringGenerator.validToken(), errorExpectedResult),
+                Arguments.of(Action.ACTION, env.getApiKey(), StringGenerator.invalidShortToken(), errorExpectedResult),
+                Arguments.of(Action.LOGOUT, null, null, errorExpectedResult),
+                Arguments.of(Action.LOGOUT, StringGenerator.randomString(32), StringGenerator.invalidShortToken(), errorExpectedResult),
+                Arguments.of(Action.LOGOUT, env.getApiKey(), StringGenerator.invalidLongToken(), errorExpectedResult),
+                Arguments.of(Action.LOGOUT, StringGenerator.randomString(5), StringGenerator.invalidTokenWithSymbols(), errorExpectedResult),
+                Arguments.of(Action.INVALID, env.getApiKey(), StringGenerator.validToken(), errorExpectedResult),
+                Arguments.of(Action.INVALID, null, StringGenerator.invalidTokenWithSymbols(), errorExpectedResult),
+                Arguments.of(Action.NULL, env.getApiKey(), StringGenerator.validToken(), errorExpectedResult),
+                Arguments.of(Action.NULL, StringGenerator.randomString(5), StringGenerator.validToken(), errorExpectedResult)
+        );
     }
 }

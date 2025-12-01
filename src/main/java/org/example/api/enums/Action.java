@@ -6,7 +6,9 @@ import lombok.Getter;
 public enum Action {
     LOGIN("LOGIN"),
     ACTION("ACTION"),
-    LOGOUT("LOGOUT");
+    LOGOUT("LOGOUT"),
+    INVALID("INVALID"),
+    NULL("");
 
     private final String value;
 
